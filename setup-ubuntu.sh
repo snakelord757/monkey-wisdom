@@ -19,8 +19,15 @@ SERVICE_NAME="monkey-wisdom"
 log() { printf '\n\033[1;32m[Monkey Wisdom]\033[0m %s\n' "$*"; }
 fail() { printf '\n\033[1;31m[Ошибка]\033[0m %s\n' "$*" >&2; exit 1; }
 
+if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  log "Скрипт запущен через sudo; продолжаю от пользователя ${SUDO_USER}"
+  exec sudo -u "${SUDO_USER}" -H env \
+    MODEL="${MODEL}" SITE_HOST="${SITE_HOST}" SITE_PORT="${SITE_PORT}" \
+    bash "${APP_DIR}/setup-ubuntu.sh"
+fi
+
 if [[ "${EUID}" -eq 0 ]]; then
-  fail "Запусти скрипт обычным пользователем с доступом к sudo, а не через sudo ./setup-ubuntu.sh."
+  fail "Скрипт запущен из root-сессии. Создай обычного пользователя: adduser deploy && usermod -aG sudo deploy, затем перенеси проект в /home/deploy и запусти скрипт от deploy."
 fi
 
 if [[ ! -f "${APP_DIR}/requirements.txt" || ! -f "${APP_DIR}/app/main.py" ]]; then
@@ -139,4 +146,3 @@ printf '  journalctl -u ollama -f\n'
 if [[ "${SITE_HOST}" == "0.0.0.0" ]]; then
   printf '\nСайт открыт для LAN. При необходимости разреши TCP-порт %s только из доверенной сети в firewall.\n' "${SITE_PORT}"
 fi
-

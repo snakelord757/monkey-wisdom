@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # One-command Ubuntu setup for Monkey Wisdom + local Qwen2.5 0.5B Q4_K_M.
-# Run from the project directory as a regular user with sudo access:
+# Run from the project directory as root or as a regular user with sudo access:
 #   chmod +x setup-ubuntu.sh
 #   ./setup-ubuntu.sh
 # For access from the LAN:
@@ -11,30 +11,31 @@ set -Eeuo pipefail
 MODEL="${MODEL:-qwen2.5:0.5b-instruct-q4_K_M}"
 SITE_HOST="${SITE_HOST:-127.0.0.1}"
 SITE_PORT="${SITE_PORT:-8000}"
-APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${SOURCE_DIR}"
 APP_USER="$(id -un)"
+if [[ "${EUID}" -eq 0 ]]; then
+  APP_DIR="/opt/monkey-wisdom"
+  APP_USER="monkey-wisdom"
+fi
 VENV_DIR="${APP_DIR}/.venv"
 SERVICE_NAME="monkey-wisdom"
 
 log() { printf '\n\033[1;32m[Monkey Wisdom]\033[0m %s\n' "$*"; }
 fail() { printf '\n\033[1;31m[Ошибка]\033[0m %s\n' "$*" >&2; exit 1; }
+as_root() {
+  if [[ "${EUID}" -eq 0 ]]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
 
-if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
-  log "Скрипт запущен через sudo; продолжаю от пользователя ${SUDO_USER}"
-  exec sudo -u "${SUDO_USER}" -H env \
-    MODEL="${MODEL}" SITE_HOST="${SITE_HOST}" SITE_PORT="${SITE_PORT}" \
-    bash "${APP_DIR}/setup-ubuntu.sh"
-fi
-
-if [[ "${EUID}" -eq 0 ]]; then
-  fail "Скрипт запущен из root-сессии. Создай обычного пользователя: adduser deploy && usermod -aG sudo deploy, затем перенеси проект в /home/deploy и запусти скрипт от deploy."
-fi
-
-if [[ ! -f "${APP_DIR}/requirements.txt" || ! -f "${APP_DIR}/app/main.py" ]]; then
+if [[ ! -f "${SOURCE_DIR}/requirements.txt" || ! -f "${SOURCE_DIR}/app/main.py" ]]; then
   fail "Скрипт должен находиться в корне проекта рядом с requirements.txt."
 fi
 
-if ! command -v sudo >/dev/null 2>&1; then
+if [[ "${EUID}" -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
   fail "Команда sudo не найдена. Установи sudo или выполни установку от администратора вручную."
 fi
 
@@ -43,9 +44,23 @@ if ! command -v systemctl >/dev/null 2>&1 || [[ "$(systemctl is-system-running 2
 fi
 
 log "Устанавливаю системные зависимости"
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  ca-certificates curl python3 python3-pip python3-venv
+as_root apt-get update
+as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  ca-certificates curl python3 python3-pip python3-venv rsync
+
+if [[ "${EUID}" -eq 0 ]]; then
+  log "Размещаю приложение в ${APP_DIR} и создаю изолированного системного пользователя"
+  if ! id -u "${APP_USER}" >/dev/null 2>&1; then
+    useradd --system --user-group --home-dir "${APP_DIR}" --shell /usr/sbin/nologin "${APP_USER}"
+  fi
+  install -d -o "${APP_USER}" -g "${APP_USER}" -m 0755 "${APP_DIR}"
+  if [[ "${SOURCE_DIR}" != "${APP_DIR}" ]]; then
+    rsync -a --delete \
+      --exclude '.git/' --exclude '.venv/' --exclude '.env' --exclude '__pycache__/' \
+      "${SOURCE_DIR}/" "${APP_DIR}/"
+  fi
+  chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
+fi
 
 if ! command -v ollama >/dev/null 2>&1; then
   log "Устанавливаю Ollama из официального установочного скрипта"
@@ -60,7 +75,7 @@ else
 fi
 
 log "Запускаю локальный сервер Ollama"
-sudo systemctl enable --now ollama
+as_root systemctl enable --now ollama
 
 for _ in $(seq 1 30); do
   if curl --fail --silent http://127.0.0.1:11434/api/version >/dev/null; then
@@ -88,6 +103,7 @@ LLM_TIMEOUT_SECONDS=120
 MAX_QUESTION_LENGTH=4000
 EOF
 chmod 600 "${APP_DIR}/.env"
+as_root chown "${APP_USER}:${APP_USER}" "${APP_DIR}/.env"
 
 log "Создаю systemd-сервис сайта"
 service_file="$(mktemp)"
@@ -112,12 +128,12 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
-sudo install -m 0644 "${service_file}" "/etc/systemd/system/${SERVICE_NAME}.service"
+as_root install -m 0644 "${service_file}" "/etc/systemd/system/${SERVICE_NAME}.service"
 rm -f "${service_file}"
 trap - EXIT
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now "${SERVICE_NAME}"
+as_root systemctl daemon-reload
+as_root systemctl enable --now "${SERVICE_NAME}"
 
 for _ in $(seq 1 30); do
   if curl --silent "http://127.0.0.1:${SITE_PORT}/api/health" >/dev/null; then
@@ -130,7 +146,7 @@ health="$(curl --silent --write-out '\n%{http_code}' "http://127.0.0.1:${SITE_PO
 health_body="$(printf '%s' "${health}" | head -n -1)"
 health_code="$(printf '%s' "${health}" | tail -n 1)"
 if [[ "${health_code}" != "200" ]]; then
-  sudo systemctl status "${SERVICE_NAME}" --no-pager || true
+  as_root systemctl status "${SERVICE_NAME}" --no-pager || true
   fail "Сайт запущен некорректно (health HTTP ${health_code}: ${health_body})."
 fi
 

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# One-command Ubuntu setup for Monkey Wisdom + local Qwen2.5 0.5B Q4_K_M.
+# One-command Ubuntu setup for Monkey Wisdom + local Qwen2.5 3B Q4_K_M.
 # Run from the project directory as root or as a regular user with sudo access:
 #   chmod +x setup-ubuntu.sh
 #   ./setup-ubuntu.sh
 # For access from the LAN:
 #   SITE_HOST=0.0.0.0 ./setup-ubuntu.sh
 
-MODEL="${MODEL:-qwen2.5:0.5b-instruct-q4_K_M}"
+MODEL="${MODEL:-qwen2.5:3b-instruct-q4_K_M}"
 SITE_HOST="${SITE_HOST:-127.0.0.1}"
 SITE_PORT="${SITE_PORT:-8000}"
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -86,7 +86,7 @@ done
 curl --fail --silent http://127.0.0.1:11434/api/version >/dev/null \
   || fail "Ollama не запустился. Проверь: journalctl -u ollama -n 100 --no-pager"
 
-log "Загружаю модель ${MODEL} (около 398 МБ)"
+log "Загружаю модель ${MODEL} (Qwen2.5 3B Q4_K_M занимает около 1,9 ГБ)"
 ollama pull "${MODEL}"
 
 log "Создаю Python-окружение и устанавливаю зависимости сайта"

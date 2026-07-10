@@ -21,9 +21,9 @@ Copy-Item .env.example .env
 Откройте `.env` и настройте модель:
 
 ```dotenv
-LLM_BASE_URL=http://127.0.0.1:8001/v1
-LLM_MODEL=local-model
-LLM_API_KEY=
+LLM_BASE_URL=http://127.0.0.1:11434/v1
+LLM_MODEL=qwen2.5:3b-instruct-q4_K_M
+LLM_API_KEY=ollama
 LLM_TIMEOUT_SECONDS=120
 MAX_QUESTION_LENGTH=4000
 ```
@@ -32,9 +32,9 @@ MAX_QUESTION_LENGTH=4000
 
 Системный промт находится в `prompts/silverback-system.txt`. Backend читает его при запуске и передаёт локальной модели первым сообщением с ролью `system`; пользовательский вопрос всегда идёт следующим сообщением с ролью `user`.
 
-## Автоматическая установка на Ubuntu с Qwen2.5 0.5B Q4
+## Автоматическая установка на Ubuntu с Qwen2.5 3B Q4
 
-Скрипт `setup-ubuntu.sh` устанавливает Python-окружение, Ollama, модель `qwen2.5:0.5b-instruct-q4_K_M`, настраивает `.env` и создаёт два автоматически запускаемых systemd-сервиса: Ollama и сайт.
+Скрипт `setup-ubuntu.sh` устанавливает Python-окружение, Ollama, модель `qwen2.5:3b-instruct-q4_K_M`, настраивает `.env` и создаёт два автоматически запускаемых systemd-сервиса: Ollama и сайт.
 
 Запускайте его из корня проекта. Поддерживается как обычный пользователь с доступом к `sudo`, так и непосредственный запуск от `root`:
 
@@ -51,7 +51,24 @@ chmod +x setup-ubuntu.sh
 SITE_HOST=0.0.0.0 ./setup-ubuntu.sh
 ```
 
-Для изменения порта можно передать `SITE_PORT`, например `SITE_PORT=8080 ./setup-ubuntu.sh`. Скрипт рассчитан на Ubuntu с systemd и требует интернет во время установки пакетов и загрузки модели (около 398 МБ).
+Для изменения порта можно передать `SITE_PORT`, например `SITE_PORT=8080 ./setup-ubuntu.sh`. Скрипт рассчитан на Ubuntu с systemd и требует интернет во время установки пакетов и загрузки модели (около 1,9 ГБ). Для сервера с 4 ГБ RAM рекомендуется добавить swap.
+
+### Переход со старой модели
+
+Скрипт `switch-model.sh` безопасно устанавливает Qwen2.5 3B Q4_K_M, проверяет её через Ollama, обновляет `.env`, перезапускает сайт и удаляет старую 0.5B только после успешного health-check:
+
+```bash
+git pull
+chmod +x switch-model.sh
+sudo ./switch-model.sh
+```
+
+Для выбора других моделей используйте переменные:
+
+```bash
+sudo env NEW_MODEL=qwen2.5:1.5b-instruct-q4_K_M \
+  OLD_MODEL=qwen2.5:0.5b-instruct-q4_K_M ./switch-model.sh
+```
 
 ### Публикация по IP через Nginx
 

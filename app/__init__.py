@@ -1,0 +1,2 @@
+"""Monkey Wisdom application package."""
+

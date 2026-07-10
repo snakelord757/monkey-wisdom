@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Спроси древнего Сильвербека и получи мудрый ответ от локальной модели.">
+  <title>Мудрости гориллы</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="canopy canopy-left" aria-hidden="true"></div>
+  <div class="canopy canopy-right" aria-hidden="true"></div>
+
+  <main class="page-shell">
+    <header class="hero">
+      <div class="hero-mark" aria-hidden="true">
+        <svg viewBox="0 0 88 88" role="img">
+          <path d="M24 29C18 16 29 5 40 16c2 2 3 5 4 8 1-3 2-6 4-8C59 5 70 16 64 29c9 7 13 19 10 31-4 16-17 24-30 24S18 76 14 60c-3-12 1-24 10-31Z"/>
+          <path class="face" d="M29 49c0-8 6-15 15-15s15 7 15 15c5 2 8 6 8 12 0 10-11 16-23 16S21 71 21 61c0-6 3-10 8-12Z"/>
+          <circle class="eye" cx="36" cy="49" r="2.6"/><circle class="eye" cx="52" cy="49" r="2.6"/>
+          <path class="mouth" d="M34 65c6 3 14 3 20 0"/>
+        </svg>
+      </div>
+      <p class="eyebrow">Совет из глубины джунглей</p>
+      <h1>Мудрости<br><span>гориллы</span></h1>
+      <p class="hero-copy">Задай вопрос. Старый Сильвербек отделит важное от шума.</p>
+    </header>
+
+    <section class="wisdom-card" aria-labelledby="question-label">
+      <div class="vine vine-top" aria-hidden="true"></div>
+
+      <form id="wisdom-form" novalidate>
+        <div class="field-heading">
+          <label id="question-label" for="question">Что тревожит твою стаю?</label>
+          <span id="character-count" aria-hidden="true">0 / 4000</span>
+        </div>
+        <textarea id="question" name="question" rows="4" maxlength="4000" aria-describedby="question-hint validation-message" placeholder="Например: как принять трудное решение и не пожалеть?"></textarea>
+        <div class="field-meta">
+          <span id="question-hint">Ctrl + Enter, чтобы спросить</span>
+          <span id="validation-message" class="validation" role="alert"></span>
+        </div>
+
+        <section id="answer-panel" class="answer-panel is-idle" aria-live="polite" aria-atomic="true">
+          <div class="answer-icon" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="answer-content">
+            <p id="answer-kicker" class="answer-kicker">Тишина перед советом</p>
+            <p id="answer-text">Сильвербек ждёт твой вопрос.</p>
+          </div>
+          <button id="retry-button" class="retry-button" type="button" hidden>Спросить снова</button>
+        </section>
+
+        <button id="submit-button" class="primary-button" type="submit">
+          <span class="button-label">Получить мудрость</span>
+          <span class="button-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <div class="slider-section">
+          <div class="slider-heading">
+            <label for="wisdom-level">Уровень мудрости</label>
+            <output id="level-output" for="wisdom-level">
+              <strong id="level-name">Смышлёный примат</strong>
+              <span>Температура: <b id="temperature-value">0.5</b></span>
+            </output>
+          </div>
+          <input id="wisdom-level" name="wisdomLevel" type="range" min="0" max="1" step="0.1" value="0.5" aria-valuetext="Смышлёный примат, температура 0.5">
+          <div class="range-labels" aria-hidden="true"><span>Импульс</span><span>Мудрость</span></div>
+        </div>
+      </form>
+    </section>
+
+    <footer><span class="banana-stem" aria-hidden="true">◒</span> Работает рядом с твоей локальной моделью</footer>
+  </main>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
+
